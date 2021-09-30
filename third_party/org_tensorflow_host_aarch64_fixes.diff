@@ -1,0 +1,165 @@
+diff --git a/tensorflow/lite/delegates/gpu/api.h b/tensorflow/lite/delegates/gpu/api.h
+index 867e791d0e43b831ecd1dc94e607cf7dad4e562c..af2a2d9bf4ef8fdd52aad3435a9c6a8bf961885a 100644
+--- a/tensorflow/lite/delegates/gpu/api.h
++++ b/tensorflow/lite/delegates/gpu/api.h
+@@ -51,6 +51,10 @@ limitations under the License.
+ #undef GL_NO_PROTOTYPES
+ #undef EGL_NO_PROTOTYPES
+ 
++#if defined(Status)
++#undef Status
++#endif
++
+ namespace tflite {
+ namespace gpu {
+ 
+diff --git a/tensorflow/lite/delegates/gpu/gl/egl_context.h b/tensorflow/lite/delegates/gpu/gl/egl_context.h
+index a93f1fdc4c40ca5e6d60ea3a72fa96a1f76c9b77..87a4adc93c8654d7e42d26f5f7bd702541eeb3c5 100644
+--- a/tensorflow/lite/delegates/gpu/gl/egl_context.h
++++ b/tensorflow/lite/delegates/gpu/gl/egl_context.h
+@@ -19,6 +19,10 @@ limitations under the License.
+ #include "tensorflow/lite/delegates/gpu/common/status.h"
+ #include "tensorflow/lite/delegates/gpu/gl/portable_egl.h"
+ 
++#if defined(Status)
++#undef Status
++#endif
++
+ namespace tflite {
+ namespace gpu {
+ namespace gl {
+diff --git a/tensorflow/lite/delegates/gpu/gl/egl_surface.h b/tensorflow/lite/delegates/gpu/gl/egl_surface.h
+index 5d39aed33fb08b5c6cd4cd433bf4daf7251dafb6..4ec6dc41d6db972136649f1cac1a0c425febf3a0 100644
+--- a/tensorflow/lite/delegates/gpu/gl/egl_surface.h
++++ b/tensorflow/lite/delegates/gpu/gl/egl_surface.h
+@@ -21,6 +21,10 @@ limitations under the License.
+ #include "tensorflow/lite/delegates/gpu/common/status.h"
+ #include "tensorflow/lite/delegates/gpu/gl/portable_egl.h"
+ 
++#if defined(Status)
++#undef Status
++#endif
++
+ namespace tflite {
+ namespace gpu {
+ namespace gl {
+diff --git a/tensorflow/lite/delegates/gpu/gl/gl_buffer.h b/tensorflow/lite/delegates/gpu/gl/gl_buffer.h
+index 1877fb1f144a87e11747890dddfdc9c6e477b4fb..93facbd10b13b7448ea32444fde1e5d4735b92d1 100644
+--- a/tensorflow/lite/delegates/gpu/gl/gl_buffer.h
++++ b/tensorflow/lite/delegates/gpu/gl/gl_buffer.h
+@@ -26,6 +26,10 @@ limitations under the License.
+ #include "tensorflow/lite/delegates/gpu/gl/gl_errors.h"
+ #include "tensorflow/lite/delegates/gpu/gl/portable_gl31.h"
+ 
++#if defined(Status)
++#undef Status
++#endif
++
+ namespace tflite {
+ namespace gpu {
+ namespace gl {
+diff --git a/tensorflow/lite/delegates/gpu/gl/gl_call.h b/tensorflow/lite/delegates/gpu/gl/gl_call.h
+index 1a392d6aca343e2f9714c6fc42668d1878ca5846..eb2a436ed27d37ec1a2a57f24c8013c0ef4b229a 100644
+--- a/tensorflow/lite/delegates/gpu/gl/gl_call.h
++++ b/tensorflow/lite/delegates/gpu/gl/gl_call.h
+@@ -22,6 +22,10 @@ limitations under the License.
+ #include "tensorflow/lite/delegates/gpu/common/status.h"
+ #include "tensorflow/lite/delegates/gpu/gl/gl_errors.h"
+ 
++#if defined(Status)
++#undef Status
++#endif
++
+ namespace tflite {
+ namespace gpu {
+ namespace gl {
+diff --git a/tensorflow/lite/delegates/gpu/gl/gl_errors.cc b/tensorflow/lite/delegates/gpu/gl/gl_errors.cc
+index 3ad6be8a25ebc87fa9230a05378ecc1730435df3..31c293d739c30cfdd8fee382b6eabcdbaf0d725f 100644
+--- a/tensorflow/lite/delegates/gpu/gl/gl_errors.cc
++++ b/tensorflow/lite/delegates/gpu/gl/gl_errors.cc
+@@ -23,6 +23,10 @@ limitations under the License.
+ #include "tensorflow/lite/delegates/gpu/gl/portable_egl.h"
+ #include "tensorflow/lite/delegates/gpu/gl/portable_gl31.h"
+ 
++#if defined(Status)
++#undef Status
++#endif
++
+ namespace tflite {
+ namespace gpu {
+ namespace gl {
+diff --git a/tensorflow/lite/delegates/gpu/gl/gl_errors.h b/tensorflow/lite/delegates/gpu/gl/gl_errors.h
+index 761eddd8901647dc04692ff86ee4f0eafbec0e03..f2af72b31fb1001c554432d862a291af3c298dee 100644
+--- a/tensorflow/lite/delegates/gpu/gl/gl_errors.h
++++ b/tensorflow/lite/delegates/gpu/gl/gl_errors.h
+@@ -18,6 +18,10 @@ limitations under the License.
+ 
+ #include "tensorflow/lite/delegates/gpu/common/status.h"
+ 
++#if defined(Status)
++#undef Status
++#endif
++
+ namespace tflite {
+ namespace gpu {
+ namespace gl {
+diff --git a/tensorflow/lite/delegates/gpu/gl/gl_shader.h b/tensorflow/lite/delegates/gpu/gl/gl_shader.h
+index 45adc59207b8cf405953bf0a4fbf20c49b18e0c1..83103b23794959817c1fd5f86237e44c7792b63d 100644
+--- a/tensorflow/lite/delegates/gpu/gl/gl_shader.h
++++ b/tensorflow/lite/delegates/gpu/gl/gl_shader.h
+@@ -22,6 +22,10 @@ limitations under the License.
+ #include "tensorflow/lite/delegates/gpu/common/status.h"
+ #include "tensorflow/lite/delegates/gpu/gl/portable_gl31.h"
+ 
++#if defined(Status)
++#undef Status
++#endif
++
+ namespace tflite {
+ namespace gpu {
+ namespace gl {
+diff --git a/tensorflow/lite/delegates/gpu/gl/gl_texture.h b/tensorflow/lite/delegates/gpu/gl/gl_texture.h
+index 23d6f10a844421238b6b7a0ce4c0cc9510efc7e2..73116379b7e21717c6d6f78e16607c6bfbbcd2b6 100644
+--- a/tensorflow/lite/delegates/gpu/gl/gl_texture.h
++++ b/tensorflow/lite/delegates/gpu/gl/gl_texture.h
+@@ -24,6 +24,10 @@ limitations under the License.
+ #include "tensorflow/lite/delegates/gpu/gl/gl_call.h"
+ #include "tensorflow/lite/delegates/gpu/gl/portable_gl31.h"
+ 
++#if defined(Status)
++#undef Status
++#endif
++
+ namespace tflite {
+ namespace gpu {
+ namespace gl {
+diff --git a/tensorflow/lite/delegates/gpu/gl/request_gpu_info.cc b/tensorflow/lite/delegates/gpu/gl/request_gpu_info.cc
+index 91539e471aeb9b33bcd0e180668e2a2dbd4370ab..ce7fafd722ef2a46777a5d362bc59dab5424987e 100644
+--- a/tensorflow/lite/delegates/gpu/gl/request_gpu_info.cc
++++ b/tensorflow/lite/delegates/gpu/gl/request_gpu_info.cc
+@@ -24,6 +24,10 @@ limitations under the License.
+ #include "tensorflow/lite/delegates/gpu/gl/gl_errors.h"
+ #include "tensorflow/lite/delegates/gpu/gl/portable_gl31.h"
+ 
++#if defined(Status)
++#undef Status
++#endif
++
+ namespace tflite {
+ namespace gpu {
+ namespace gl {
+diff --git a/tensorflow/lite/delegates/gpu/gl_delegate.cc b/tensorflow/lite/delegates/gpu/gl_delegate.cc
+index 099c88281135ba9bc220283371b9d6f950527585..0fcf383188cc2ce6723d463bb009788111b154f1 100644
+--- a/tensorflow/lite/delegates/gpu/gl_delegate.cc
++++ b/tensorflow/lite/delegates/gpu/gl_delegate.cc
+@@ -18,6 +18,10 @@ limitations under the License.
+ #include <EGL/egl.h>
+ #include <GLES3/gl31.h>
+ 
++#if defined(Status)
++#undef Status
++#endif
++
+ #include <algorithm>
+ #include <cstdint>
+ #include <cstring>

@@ -1,0 +1,327 @@
+diff --git a/WORKSPACE b/WORKSPACE
+index aacf856..cee2bbc 100644
+--- a/WORKSPACE
++++ b/WORKSPACE
+@@ -1,6 +1,8 @@
+ workspace(name = "mediapipe")
+ 
+ load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
++load("@bazel_tools//tools/build_defs/repo:git.bzl", "git_repository")
++load("@bazel_tools//tools/build_defs/repo:git.bzl", "new_git_repository")
+ 
+ http_archive(
+     name = "bazel_skylib",
+@@ -182,9 +184,11 @@ http_archive(
+     name = "opencv",
+     build_file_content = all_content,
+     strip_prefix = "opencv-3.4.10",
+-    urls = ["https://github.com/opencv/opencv/archive/3.4.10.tar.gz"],
++    #urls = ["https://github.com/opencv/opencv/archive/3.4.10.tar.gz"],
++    urls = ["http://10.64.35.241/bazel/opensource/opencv-3.4.10.tar.gz"],
+ )
+ 
++
+ new_local_repository(
+     name = "linux_opencv",
+     build_file = "@//third_party:opencv_linux.BUILD",
+@@ -389,6 +393,7 @@ http_archive(
+     patches = [
+         "@//third_party:org_tensorflow_compatibility_fixes.diff",
+         "@//third_party:org_tensorflow_objc_cxx17.diff",
++        "@//third_party:org_tensorflow_host_aarch64_fixes.diff",
+     ],
+     patch_args = [
+         "-p1",
+diff --git a/mediapipe/examples/desktop/BUILD b/mediapipe/examples/desktop/BUILD
+index 80cb7ad..e2c6b0b 100644
+--- a/mediapipe/examples/desktop/BUILD
++++ b/mediapipe/examples/desktop/BUILD
+@@ -51,6 +51,14 @@ cc_library(
+         "@com_google_absl//absl/flags:flag",
+         "@com_google_absl//absl/flags:parse",
+     ],
++    linkopts = [
++        "-L/usr/local/lib",
++        "-lopencv_core",
++        "-lopencv_highgui",
++        "-lopencv_imgproc",
++        "-lopencv_video",
++        "-lopencv_videoio",
++    ],
+ )
+ 
+ # Linux only.
+@@ -75,5 +83,31 @@ cc_library(
+         "//mediapipe/gpu:gpu_shared_data_internal",
+         "@com_google_absl//absl/flags:flag",
+         "@com_google_absl//absl/flags:parse",
++        "//third_party/cuda_trt:cuda_api_headers",
++    ],
++    #copts = ["-I/usr/local/cuda/include"],
++    #hdrs = ["include/cuda_runtime_api.h"],
++    copts = [
++             "-Ithird_party/cuda_trt/usr_local_cuda-10.2/include/crt/",
++             "-Ithird_party/cuda_trt/usr_local_cuda-10.2/include/",
++             "-Ithird_party/cuda_trt/usr_local_cuda/include/",
++            ],
++    linkopts = [
++        "-L/usr/local/lib",
++        "-L/usr/lib/aarch64-linux-gnu/",
++        "-L/usr/local/cuda-10.2/targets/aarch64-linux/lib/",
++        "-lopencv_core",
++        "-lopencv_highgui",
++        "-lopencv_imgproc",
++        "-lopencv_video",
++        "-lopencv_videoio",
++        "-lnvonnxparser",
++        "-lnvinfer_plugin",
++        "-lnvparsers",
++        "-lnvinfer",
++        "-lcublas",
++        "-lcudnn",
++        "-lcudart",
+     ],
++
+ )
+diff --git a/mediapipe/examples/desktop/demo_run_graph_main_gpu.cc b/mediapipe/examples/desktop/demo_run_graph_main_gpu.cc
+index 586565d..6b9dfbe 100644
+--- a/mediapipe/examples/desktop/demo_run_graph_main_gpu.cc
++++ b/mediapipe/examples/desktop/demo_run_graph_main_gpu.cc
+@@ -15,7 +15,7 @@
+ // An example of sending OpenCV webcam frames into a MediaPipe graph.
+ // This example requires a linux computer and a GPU with EGL support drivers.
+ #include <cstdlib>
+-
++#include <chrono>
+ #include "absl/flags/flag.h"
+ #include "absl/flags/parse.h"
+ #include "mediapipe/framework/calculator_framework.h"
+@@ -31,10 +31,15 @@
+ #include "mediapipe/gpu/gpu_buffer.h"
+ #include "mediapipe/gpu/gpu_shared_data_internal.h"
+ 
++/***add by zhenjiang.sun**/
++#include <cuda_runtime_api.h>
++/**end**/
++
+ constexpr char kInputStream[] = "input_video";
+ constexpr char kOutputStream[] = "output_video";
+ constexpr char kWindowName[] = "MediaPipe";
+ 
++
+ ABSL_FLAG(std::string, calculator_graph_config_file, "",
+           "Name of file containing text format CalculatorGraphConfig proto.");
+ ABSL_FLAG(std::string, input_video_path, "",
+@@ -43,6 +48,9 @@ ABSL_FLAG(std::string, input_video_path, "",
+ ABSL_FLAG(std::string, output_video_path, "",
+           "Full path of where to save result (.mp4 only). "
+           "If not provided, show result in a window.");
++ABSL_FLAG(bool, remote_run, true,
++          "FLAGS_remote_run. "
++          "If not provided, default true");
+ 
+ absl::Status RunMPPGraph() {
+   std::string calculator_graph_config_contents;
+@@ -65,7 +73,7 @@ absl::Status RunMPPGraph() {
+   mediapipe::GlCalculatorHelper gpu_helper;
+   gpu_helper.InitializeForTest(graph.GetGpuResources().get());
+ 
+-  LOG(INFO) << "Initialize the camera or load the video.";
++  LOG(INFO) << "Initialize the camera or load the video: [" << absl::GetFlag(FLAGS_input_video_path) << "].";
+   cv::VideoCapture capture;
+   const bool load_video = !absl::GetFlag(FLAGS_input_video_path).empty();
+   if (load_video) {
+@@ -190,8 +198,14 @@ absl::Status RunMPPGraph() {
+ }
+ 
+ int main(int argc, char** argv) {
++  using std::chrono::high_resolution_clock;
++  using std::chrono::duration_cast;
++  using std::chrono::duration;
++  using std::chrono::milliseconds;
++
+   google::InitGoogleLogging(argv[0]);
+   absl::ParseCommandLine(argc, argv);
++  auto t1 = high_resolution_clock::now();
+   absl::Status run_status = RunMPPGraph();
+   if (!run_status.ok()) {
+     LOG(ERROR) << "Failed to run the graph: " << run_status.message();
+@@ -199,5 +213,8 @@ int main(int argc, char** argv) {
+   } else {
+     LOG(INFO) << "Success!";
+   }
++  auto t2 = high_resolution_clock::now();
++  duration<double, std::milli> ms_double = t2 - t1;
++  LOG(INFO) <<"MediaRunGraph Time::" <<ms_double.count() << "ms";
+   return EXIT_SUCCESS;
+ }
+diff --git a/third_party/org_tensorflow_host_aarch64_fixes.diff b/third_party/org_tensorflow_host_aarch64_fixes.diff
+index e69de29..2c146a1 100644
+--- a/third_party/org_tensorflow_host_aarch64_fixes.diff
++++ b/third_party/org_tensorflow_host_aarch64_fixes.diff
+@@ -0,0 +1,165 @@
++diff --git a/tensorflow/lite/delegates/gpu/api.h b/tensorflow/lite/delegates/gpu/api.h
++index 867e791d0e43b831ecd1dc94e607cf7dad4e562c..af2a2d9bf4ef8fdd52aad3435a9c6a8bf961885a 100644
++--- a/tensorflow/lite/delegates/gpu/api.h
+++++ b/tensorflow/lite/delegates/gpu/api.h
++@@ -51,6 +51,10 @@ limitations under the License.
++ #undef GL_NO_PROTOTYPES
++ #undef EGL_NO_PROTOTYPES
++ 
+++#if defined(Status)
+++#undef Status
+++#endif
+++
++ namespace tflite {
++ namespace gpu {
++ 
++diff --git a/tensorflow/lite/delegates/gpu/gl/egl_context.h b/tensorflow/lite/delegates/gpu/gl/egl_context.h
++index a93f1fdc4c40ca5e6d60ea3a72fa96a1f76c9b77..87a4adc93c8654d7e42d26f5f7bd702541eeb3c5 100644
++--- a/tensorflow/lite/delegates/gpu/gl/egl_context.h
+++++ b/tensorflow/lite/delegates/gpu/gl/egl_context.h
++@@ -19,6 +19,10 @@ limitations under the License.
++ #include "tensorflow/lite/delegates/gpu/common/status.h"
++ #include "tensorflow/lite/delegates/gpu/gl/portable_egl.h"
++ 
+++#if defined(Status)
+++#undef Status
+++#endif
+++
++ namespace tflite {
++ namespace gpu {
++ namespace gl {
++diff --git a/tensorflow/lite/delegates/gpu/gl/egl_surface.h b/tensorflow/lite/delegates/gpu/gl/egl_surface.h
++index 5d39aed33fb08b5c6cd4cd433bf4daf7251dafb6..4ec6dc41d6db972136649f1cac1a0c425febf3a0 100644
++--- a/tensorflow/lite/delegates/gpu/gl/egl_surface.h
+++++ b/tensorflow/lite/delegates/gpu/gl/egl_surface.h
++@@ -21,6 +21,10 @@ limitations under the License.
++ #include "tensorflow/lite/delegates/gpu/common/status.h"
++ #include "tensorflow/lite/delegates/gpu/gl/portable_egl.h"
++ 
+++#if defined(Status)
+++#undef Status
+++#endif
+++
++ namespace tflite {
++ namespace gpu {
++ namespace gl {
++diff --git a/tensorflow/lite/delegates/gpu/gl/gl_buffer.h b/tensorflow/lite/delegates/gpu/gl/gl_buffer.h
++index 1877fb1f144a87e11747890dddfdc9c6e477b4fb..93facbd10b13b7448ea32444fde1e5d4735b92d1 100644
++--- a/tensorflow/lite/delegates/gpu/gl/gl_buffer.h
+++++ b/tensorflow/lite/delegates/gpu/gl/gl_buffer.h
++@@ -26,6 +26,10 @@ limitations under the License.
++ #include "tensorflow/lite/delegates/gpu/gl/gl_errors.h"
++ #include "tensorflow/lite/delegates/gpu/gl/portable_gl31.h"
++ 
+++#if defined(Status)
+++#undef Status
+++#endif
+++
++ namespace tflite {
++ namespace gpu {
++ namespace gl {
++diff --git a/tensorflow/lite/delegates/gpu/gl/gl_call.h b/tensorflow/lite/delegates/gpu/gl/gl_call.h
++index 1a392d6aca343e2f9714c6fc42668d1878ca5846..eb2a436ed27d37ec1a2a57f24c8013c0ef4b229a 100644
++--- a/tensorflow/lite/delegates/gpu/gl/gl_call.h
+++++ b/tensorflow/lite/delegates/gpu/gl/gl_call.h
++@@ -22,6 +22,10 @@ limitations under the License.
++ #include "tensorflow/lite/delegates/gpu/common/status.h"
++ #include "tensorflow/lite/delegates/gpu/gl/gl_errors.h"
++ 
+++#if defined(Status)
+++#undef Status
+++#endif
+++
++ namespace tflite {
++ namespace gpu {
++ namespace gl {
++diff --git a/tensorflow/lite/delegates/gpu/gl/gl_errors.cc b/tensorflow/lite/delegates/gpu/gl/gl_errors.cc
++index 3ad6be8a25ebc87fa9230a05378ecc1730435df3..31c293d739c30cfdd8fee382b6eabcdbaf0d725f 100644
++--- a/tensorflow/lite/delegates/gpu/gl/gl_errors.cc
+++++ b/tensorflow/lite/delegates/gpu/gl/gl_errors.cc
++@@ -23,6 +23,10 @@ limitations under the License.
++ #include "tensorflow/lite/delegates/gpu/gl/portable_egl.h"
++ #include "tensorflow/lite/delegates/gpu/gl/portable_gl31.h"
++ 
+++#if defined(Status)
+++#undef Status
+++#endif
+++
++ namespace tflite {
++ namespace gpu {
++ namespace gl {
++diff --git a/tensorflow/lite/delegates/gpu/gl/gl_errors.h b/tensorflow/lite/delegates/gpu/gl/gl_errors.h
++index 761eddd8901647dc04692ff86ee4f0eafbec0e03..f2af72b31fb1001c554432d862a291af3c298dee 100644
++--- a/tensorflow/lite/delegates/gpu/gl/gl_errors.h
+++++ b/tensorflow/lite/delegates/gpu/gl/gl_errors.h
++@@ -18,6 +18,10 @@ limitations under the License.
++ 
++ #include "tensorflow/lite/delegates/gpu/common/status.h"
++ 
+++#if defined(Status)
+++#undef Status
+++#endif
+++
++ namespace tflite {
++ namespace gpu {
++ namespace gl {
++diff --git a/tensorflow/lite/delegates/gpu/gl/gl_shader.h b/tensorflow/lite/delegates/gpu/gl/gl_shader.h
++index 45adc59207b8cf405953bf0a4fbf20c49b18e0c1..83103b23794959817c1fd5f86237e44c7792b63d 100644
++--- a/tensorflow/lite/delegates/gpu/gl/gl_shader.h
+++++ b/tensorflow/lite/delegates/gpu/gl/gl_shader.h
++@@ -22,6 +22,10 @@ limitations under the License.
++ #include "tensorflow/lite/delegates/gpu/common/status.h"
++ #include "tensorflow/lite/delegates/gpu/gl/portable_gl31.h"
++ 
+++#if defined(Status)
+++#undef Status
+++#endif
+++
++ namespace tflite {
++ namespace gpu {
++ namespace gl {
++diff --git a/tensorflow/lite/delegates/gpu/gl/gl_texture.h b/tensorflow/lite/delegates/gpu/gl/gl_texture.h
++index 23d6f10a844421238b6b7a0ce4c0cc9510efc7e2..73116379b7e21717c6d6f78e16607c6bfbbcd2b6 100644
++--- a/tensorflow/lite/delegates/gpu/gl/gl_texture.h
+++++ b/tensorflow/lite/delegates/gpu/gl/gl_texture.h
++@@ -24,6 +24,10 @@ limitations under the License.
++ #include "tensorflow/lite/delegates/gpu/gl/gl_call.h"
++ #include "tensorflow/lite/delegates/gpu/gl/portable_gl31.h"
++ 
+++#if defined(Status)
+++#undef Status
+++#endif
+++
++ namespace tflite {
++ namespace gpu {
++ namespace gl {
++diff --git a/tensorflow/lite/delegates/gpu/gl/request_gpu_info.cc b/tensorflow/lite/delegates/gpu/gl/request_gpu_info.cc
++index 91539e471aeb9b33bcd0e180668e2a2dbd4370ab..ce7fafd722ef2a46777a5d362bc59dab5424987e 100644
++--- a/tensorflow/lite/delegates/gpu/gl/request_gpu_info.cc
+++++ b/tensorflow/lite/delegates/gpu/gl/request_gpu_info.cc
++@@ -24,6 +24,10 @@ limitations under the License.
++ #include "tensorflow/lite/delegates/gpu/gl/gl_errors.h"
++ #include "tensorflow/lite/delegates/gpu/gl/portable_gl31.h"
++ 
+++#if defined(Status)
+++#undef Status
+++#endif
+++
++ namespace tflite {
++ namespace gpu {
++ namespace gl {
++diff --git a/tensorflow/lite/delegates/gpu/gl_delegate.cc b/tensorflow/lite/delegates/gpu/gl_delegate.cc
++index 099c88281135ba9bc220283371b9d6f950527585..0fcf383188cc2ce6723d463bb009788111b154f1 100644
++--- a/tensorflow/lite/delegates/gpu/gl_delegate.cc
+++++ b/tensorflow/lite/delegates/gpu/gl_delegate.cc
++@@ -18,6 +18,10 @@ limitations under the License.
++ #include <EGL/egl.h>
++ #include <GLES3/gl31.h>
++ 
+++#if defined(Status)
+++#undef Status
+++#endif
+++
++ #include <algorithm>
++ #include <cstdint>
++ #include <cstring>
