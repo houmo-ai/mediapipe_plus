@@ -97,5 +97,5 @@ It is based on BlazeFace, a lightweight and well-performing face detector.
 
 # TODO  
 We left several TODOs which will be done in next version .  
-1.Use vpi interfaces to accelerate pre and post process such as color space convertion、 resize 、 saving images etc.  
-2.Reuse  mediapipe official released  post process calculators.  
+[] Use vpi interfaces to accelerate pre and post process such as color space convertion、 resize 、 saving images etc.  
+[] Reuse  mediapipe official released  post process calculators.  
